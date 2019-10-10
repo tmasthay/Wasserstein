@@ -62,7 +62,7 @@ def build_stiff(c,x,y,dx,dy):
           A[start_sub:end_sub, (end_sub):(end_sub+x_stride)] = O
   return A
 
-def solve_forward(n_x,n_y,a,b,T,n_t,cts_force,cts_speed,cts_ic):
+def solve_forward_long(n_x,n_y,a,b,T,n_t,cts_force,cts_speed,cts_ic):
   x = np.linspace(a,b,n_x)
   y = np.linspace(a,b,n_y)
 
@@ -98,12 +98,7 @@ def solve_forward(n_x,n_y,a,b,T,n_t,cts_force,cts_speed,cts_ic):
      print 'rhs size = ', rhs.shape
      u[:,n+1] = np.linalg.solve(sys_mat,rhs)    
      print 'Just solved for the ', n, '-th time'
-  
-  fig = plt.figure()
-  ax = plt.axes(projection='3d')
-  
-  pause_res = .25
-  
+   
   #for n in range(0,n_t+1):
   #    X,Y = np.meshgrid(x,y)
   #    Z = np.zeros((len(x),len(y)))
@@ -112,9 +107,14 @@ def solve_forward(n_x,n_y,a,b,T,n_t,cts_force,cts_speed,cts_ic):
   #    print 'Pushed ', n, '-th time!'
   #    plt.pause(pause_res)
   
+  return x,y,u
+
+def animate(x,y,u,intvl):
   X,Y = np.meshgrid(x,y)
-  
-  def animate(n):
+  fig = plt.figure()
+  ax  = plt.axes(projection='3d')
+
+  def animate_helper(n):
       ax.clear()
       Z = np.zeros((len(x),len(y)))
       Z[1:(len(x)-1),1:(len(y)-1)] = u[:,n].reshape(len(x)-2,len(y)-2)
@@ -124,14 +124,13 @@ def solve_forward(n_x,n_y,a,b,T,n_t,cts_force,cts_speed,cts_ic):
       ax.set_ylim3d(0. , 1.)
       ax.set_title('n = %d'%(n))
   
-  intvl = .1
-  ani = animation.FuncAnimation(fig,animate,interval=intvl*1e+3,blit=False)
-  
-  return u,ax
+  ani = animation.FuncAnimation(fig,animate_helper,interval=intvl*1e+3,blit=False)
+  plt.show()
+  #ani.show() ==> if this works, then refactor returning ani that way we can play whenever we want
 
 #def solve_forward(n_x,n_y,a,b,T,n_t,cts_force,cts_speed,cts_ic)
 def solve_forward(arg_dict):
-  return solve_forward( arg_dict["n_x"]      ,
+  return solve_forward_long( arg_dict["n_x"]      ,
                         arg_dict["n_y"]      ,
                         arg_dict["a"]        ,
                         arg_dict["b"]        ,
@@ -146,11 +145,11 @@ case_1 = { "n_x":    100,
            "a"  :      0,
            "b"  :      1,
            "T"  :    .01,
-           "n_t":    100 }
+           "n_t":    10 }
 
 case_1["cts_force"] = lambda x,y: 0
 case_1["cts_speed"] = lambda x,y: 1
-case_1["cts_ic"]    = lambda x,y: cts_speed(x,y) * math.pi * math.sqrt(2) * math.sin(
+case_1["cts_ic"]    = lambda x,y: case_1["cts_speed"](x,y) * math.pi * math.sqrt(2) * math.sin(
         math.pi * x ) * math.sin( math.pi * y )
 
-
+cases = list([case_1])
