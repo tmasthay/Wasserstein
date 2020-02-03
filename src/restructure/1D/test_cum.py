@@ -1,3 +1,13 @@
+# filename: test_cum.py
+#
+# description: Test W2 implementation with Gaussian and Ricker wavelets
+# author: Tyler Masthay
+# project: W2 norm for Full Waveform Inversion
+# repo: https://github.com/tmasthay/wasserstein
+#
+#
+
+
 import renormalize as rn
 import numpy as np
 import matplotlib.pylab as plt
@@ -57,7 +67,9 @@ def test_convexity(f,shifts,a,b,N):
   x = np.linspace(a,b,N)
   dists = []
   for g in shifts:
-    tmp = rn.wasserstein_distance(f,g,x,N)
+#    tmp = rn.wasserstein_distance(f,g,x,N)
+    tmp = rn.partial_wasserstein(f,g,a,b,N)
+    print('W2 Norm!!! = %s'%(tmp[0]))
     dists.append(tmp[0])
   return dists
 
@@ -150,7 +162,7 @@ print('G_exact max/min = %s:::%s\n'%(max(Gq_exact_disc), min(Gq_exact_disc)))
 print('G_approx max/min = %s:::%s\n'%(max(Gq_approx), min(Gq_approx)))
 print('G_smooth max/min = %s:::%s\n'%(max(Gq_smooth), min(Gq_smooth)))
 
-plt.figure(2)
+plt.figure(1)
 diff = np.linalg.norm(Fq_exact_disc - Fq_approx)
 plt.title('Quantile Comparison #1: %.3e'%(diff))
 plt.plot(p, Fq_exact_disc, label='Exact Quantile' )
@@ -158,7 +170,7 @@ plt.plot(p, Fq_approx    , label='Approx Quantile')
 plt.plot(p, Fq_smooth    , label='Smoothed Approx')
 plt.legend()
 
-plt.figure(3)
+plt.figure(2)
 diff = np.linalg.norm(Gq_exact_disc - Gq_approx)
 plt.title('Quantile Comparison #2: %.3e'%(diff))
 plt.plot(p, Gq_exact_disc, label='Exact Quantile' )
@@ -173,7 +185,7 @@ W2_integrand_exact = (Fq_exact_disc - Gq_exact_disc)
 W2_approx          = (Fq_approx - Gq_approx        ) 
 W2_approx_smooth   = (Fq_smooth - Gq_smooth        ) 
 
-plt.figure(4)
+plt.figure(3)
 plt.title('Wasserstein Integrand Comparison')
 plt.plot(p, W2_integrand_exact, label='Exact')
 plt.plot(p, W2_approx         , label='Approximate')
@@ -184,88 +196,38 @@ plt.legend()
 mu       = 0.0
 sigma    = 1.0
 mu_step  = 0.2
-N_s      = 2
+N_s      = 10
 N_x      = 10000
 h        = gauss(mu,sigma)
+rick     = ricker(mu,sigma)
 a        = -50.0
 b        = 50.0
 shifted  = []
+rick_s   = []
 s        = mu_step * np.array(range(-N_s,N_s+1))
 
-for shift_length in s:
-  print(shift_length)
-#  shifted.append( rn.shift(h,shift_length) )
-  shifted.append( gauss(mu + shift_length, sigma) )
+compute_gauss  = False
+compute_ricker = True
+if( compute_gauss ):
+  for shift_length in s:
+    print(shift_length)
+    shifted.append( gauss( mu + shift_length, sigma) )
+  
+  plt.figure(4)
+  plot_convexity_test(h,                                  \
+                      shifted,                            \
+                      s,                                  \
+                      a, b, N_x,                          \
+                      fig_name ='figures/GaussCheck.png', \
+                      the_title= 'Gaussian Packets')
 
-fig = plt.figure(5)
-plot_convexity_test(h,                                 \
-                    shifted,                           \
-                    s,                                 \
-                    a, b, N_x,                         \
-                    fig_name ='figures/GaussCheck.png',\
-                    the_title= 'Gaussian Packets')
-plt.show()
-
-
-#print(test_convexity(h, shifted,a,b,N_x))
-
-"""
-g = []
-g.append(gauss(mu - 10 * mu_step, sigma))
-g.append(gauss(mu - 9 * mu_step, sigma))
-g.append(gauss(mu - 8 * mu_step, sigma))
-g.append(gauss(mu - 7 * mu_step, sigma))
-g.append(gauss(mu - 6 * mu_step, sigma))
-g.append(gauss(mu - 5 * mu_step, sigma))
-g.append(gauss(mu - 4 * mu_step, sigma))
-g.append(gauss(mu - 3 * mu_step, sigma))
-g.append(gauss(mu - 2 * mu_step, sigma))
-g.append(gauss(mu - 1 * mu_step, sigma))
-g.append(gauss(mu - 0 * mu_step, sigma))
-g.append(gauss(mu + 1 * mu_step, sigma))
-g.append(gauss(mu + 2 * mu_step, sigma))
-g.append(gauss(mu + 3 * mu_step, sigma))
-g.append(gauss(mu + 4 * mu_step, sigma))
-g.append(gauss(mu + 5 * mu_step, sigma))
-g.append(gauss(mu + 6 * mu_step, sigma))
-g.append(gauss(mu + 7 * mu_step, sigma))
-g.append(gauss(mu + 8 * mu_step, sigma))
-g.append(gauss(mu + 9 * mu_step, sigma))
-g.append(gauss(mu + 10 * mu_step, sigma))
-
-shiftTest = []
-shiftTest.append(rn.shift(h, -10 * mu_step))
-shiftTest.append(rn.shift(h, -9 * mu_step))
-shiftTest.append(rn.shift(h, -8 * mu_step))
-shiftTest.append(rn.shift(h, -7 * mu_step))
-shiftTest.append(rn.shift(h, -6 * mu_step))
-shiftTest.append(rn.shift(h, -5 * mu_step))
-shiftTest.append(rn.shift(h, -4 * mu_step))
-shiftTest.append(rn.shift(h, -3 * mu_step))
-shiftTest.append(rn.shift(h, -2 * mu_step))
-shiftTest.append(rn.shift(h, -1 * mu_step))
-shiftTest.append(rn.shift(h, 0 * mu_step))
-shiftTest.append(rn.shift(h, 1 * mu_step))
-shiftTest.append(rn.shift(h, 2 * mu_step))
-shiftTest.append(rn.shift(h, 3 * mu_step))
-shiftTest.append(rn.shift(h, 4 * mu_step))
-shiftTest.append(rn.shift(h, 5 * mu_step))
-shiftTest.append(rn.shift(h, 6 * mu_step))
-shiftTest.append(rn.shift(h, 7 * mu_step))
-shiftTest.append(rn.shift(h, 8 * mu_step))
-shiftTest.append(rn.shift(h, 9 * mu_step))
-shiftTest.append(rn.shift(h, 10 * mu_step))
-
-x = np.linspace(a,b,N_x)
-dists = []
-for i,gg in enumerate(shiftTest):
-  print('computing %s'%(i))
-  tmp = rn.wasserstein_distance(h,gg,x,N_x)
-  dists.append(tmp[0])
-
-fig = plt.figure(5)
-ax  = plt.subplot(111)
-plt.plot(s, dists, label='W2 norm')
-plt.legend()
-fig.savefig('figures/GaussCheck-Shift.png')
-"""
+if(compute_ricker):
+  plt.figure(5)
+  for shift_length in s:
+    rick_s.append( ricker(mu + shift_length, sigma) )
+  plot_convexity_test(rick,                                      \
+                      rick_s,                                     
+                      s,                                         \
+                      a, b, N_x,                                 \
+                      fig_name  = 'figures/RickerConvexity-Smaller.png', \
+                      the_title = 'Ricker Wavelet')

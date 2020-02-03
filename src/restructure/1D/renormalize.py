@@ -26,6 +26,7 @@ def normalize(f, a, b):
     return f
   return lambda x : f(x) / C
 
+#splits signal into 
 def split_normalize(f, a, b):
   f_p,f_m = split(f)  
 
