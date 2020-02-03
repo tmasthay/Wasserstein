@@ -4,7 +4,7 @@ from scipy.optimize import fsolve
 import matplotlib.pylab as plt
 from scipy import signal
 
-"""
+
 #splits wave f and g into positive and negative parts
 def split(f):
   def f_plus(x):
@@ -18,10 +18,20 @@ def split(f):
     else:
       return 0.0
   return f_plus,f_minus
-"""
+
 #renormalize a given probability distribution
-def normalize(f):
-  return lambda x : f(x) / quad(f, -np.inf, np.inf)  
+def normalize(f, a, b):
+  C,D = quad(f,a,b)
+  if( C == 0 ):
+    return f
+  return lambda x : f(x) / C
+
+def split_normalize(f, a, b):
+  f_p,f_m = split(f)  
+
+  f_p = normalize(f_p,a,b)
+  f_m = normalize(f_m,a,b)
+  return f_p, f_m 
 
 #get cdf from pdf
 def cumulative(f):
@@ -99,7 +109,7 @@ def invert_cdf_disc_disc(F, xx, yy, interpolate=False):
 #  formulation
 #  f,g -- probability distributions -- must be normalized beforehand
 #      -- must be squashed into [0,1]
-def wasserstein_integrand(f,g,x,N):
+def wasserstein_integrand(f,g,x,N,smooth=False):
    #Rewrite as F^{-1}(y) - G^{-1}(y)
    tol = 1.0e-05
    F,F_err     = cum_disc(f,x)
@@ -108,13 +118,18 @@ def wasserstein_integrand(f,g,x,N):
    p = np.linspace(0.0,1.0,N)
    #F_inv = invert_cdf_disc_cts(F, x, interpolate=True)
    #G_inv = invert_cdf_disc_cts(G, x, interpolate=True)
-   F_inv_disc = invert_cdf_disc_disc(F, x, p, interpolate=True)
-   G_inv_disc = invert_cdf_disc_disc(G, x, p, interpolate=True)
+   F_inv_disc = invert_cdf_disc_disc(F, x, p, 
+     interpolate=False)
+   G_inv_disc = invert_cdf_disc_disc(G, x, p, 
+     interpolate=False)
 
-   F_inv_smooth = signal.savgol_filter(F_inv_disc, 53, 5)
-   G_inv_smooth = signal.savgol_filter(G_inv_disc, 53, 5)
+   half = np.round(N/2)
+   wind = half + (np.mod(half,2) + 1)
+   if( smooth ):
+     F_inv_disc = signal.savgol_filter(F_inv_disc, 53, 5)
+     G_inv_disc = signal.savgol_filter(G_inv_disc, 53, 5)
 
-   diff = abs(F_inv_smooth - G_inv_smooth) ** 2
+   diff = abs(F_inv_disc - G_inv_disc) ** 2
 
    return linearize(p, diff)
 #computes wasserstein distance
@@ -123,10 +138,24 @@ def wasserstein_distance(f,g,x,N):
   return np.sqrt(quad(wasserstein_integrand(f,g,x,N), 0.0, 1.0))
  
 #compute direct wasserstein
-def partial_wasserstein(f,g):
-  f_norm = normalize(f)
-  g_norm = normalize(g)
-  return -1.0
+def partial_wasserstein(f,g,a,b,N):
+  f_p, f_m = split_normalize(f,a,b)
+  g_p, g_m = split_normalize(g,a,b)
+
+  x = np.linspace(a,b,N)
+
+  pos_contrib = (wasserstein_distance(f_p,g_p,x,N))**2
+  neg_contrib = (wasserstein_distance(f_m,g_m,x,N))**2
+
+  return np.sqrt( pos_contrib + neg_contrib ) 
+
+
+"""
+def test_convexity(f,shifts,a,b):
+  wass  = lambda g : partial_wasserstein(f,g,a,b)
+  dists = np.array(list(map(wass, shifts)))
+  return np.sqrt( np.sum(dists) )  
+"""
 
 #linearize a set of data points and their corresponding domain location
 def linearize(xx,yy):
@@ -148,3 +177,5 @@ def linearize(xx,yy):
     return fin
   return f
 
+def shift(f,s):
+  return lambda t : f(t-s)
