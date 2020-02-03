@@ -120,7 +120,7 @@ def wasserstein_integrand(f,g,x,N):
 #computes wasserstein distance
 # precondition -- f,g are probability densities
 def wasserstein_distance(f,g,x,N):
-  return quad(wasserstein_integrand(f,g,x,N), 0.0, 1.0)
+  return np.sqrt(quad(wasserstein_integrand(f,g,x,N), 0.0, 1.0))
  
 #compute direct wasserstein
 def partial_wasserstein(f,g):

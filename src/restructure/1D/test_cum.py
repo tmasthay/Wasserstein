@@ -42,29 +42,29 @@ def apply(f, x):
 def get_col(arr,i):
   return [row[i] for row in arr]
 
-s1     = 0.0
+s1     = 2.0
 sigma1 = 1.0
-s2     = 1.0
+s2     = 3.0
 sigma2 = 1.0
 
-f = gauss(s1, sigma1)
-g = gauss(s2, sigma2)
+#define mesh info for probability density space
+a   = -10.0
+b   = 10.0
+N_x = 1000
 
+#define mesh info 
+eps = 1.0e-05
+N_p = 1000
+p   = np.linspace(eps, 1.0 - eps, N_p)
+
+#define distributions
+f   = gauss(s1, sigma1)
+g   = gauss(s2, sigma2)
+
+#def
 eps = 1.0e-05
 
-
-a   = -5.0
-b   = 5.0
-N_x = 1000
 x   = np.linspace(a,b,N_x)
-
-eps           = 1.0e-05
-N_p           = 1000
-p             = np.linspace(eps,1.0 - eps,N_p)
-
-obj           = rn.wasserstein_integrand(f,g,x,1000)
-wass_int_disc = np.array(list(map(obj,p)))
-wass_smooth   = signal.savgol_filter(wass_int_disc, 53, 10)
 
 proper_int    = correct_wass_int(s1,sigma1,s2,sigma2)
 W2_correct    = correct_wass_dist(proper_int, 1000)
