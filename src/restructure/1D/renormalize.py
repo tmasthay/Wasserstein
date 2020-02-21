@@ -32,7 +32,18 @@ def split_normalize(f, a, b):
 
   f_p = normalize(f_p,a,b)
   f_m = normalize(f_m,a,b)
-  return f_p, f_m 
+  return f_p, f_m
+
+def better_split_normalize(f,g,a,b):
+  f_p,f_m = split_normalize(f,a,b)
+  g_p,g_m = split_normalize(g,a,b)
+  
+  return [(f_p,g_p), (f_m,g_m)] 
+
+def normalize_L1(f,g,a,b):
+  ff = lambda x : abs(f(x))
+  gg = lambda x : abs(g(x))
+  return [(normalize(ff,a,b), normalize(gg,a,b))]
 
 #get cdf from pdf
 def cumulative(f):
@@ -66,6 +77,7 @@ def cum_split(F):
   return vals,errs
 """
 
+#DONT USE THIS!!! IT DOESNT WORK WELL!!
 def invert_cdf(F):
   def the_inverse(y):
     return fsolve(lambda x : F(x) - y,0)
@@ -127,19 +139,23 @@ def wasserstein_integrand(f,g,x,N,smooth=False):
    half = np.round(N/2)
    wind = half + (np.mod(half,2) + 1)
    if( smooth ):
-     F_inv_disc = signal.savgol_filter(F_inv_disc, 53, 5)
-     G_inv_disc = signal.savgol_filter(G_inv_disc, 53, 5)
+     F_inv_disc = signal.savgol_filter(F_inv_disc, 53, 1)
+     G_inv_disc = signal.savgol_filter(G_inv_disc, 53, 1)
 
    diff = abs(F_inv_disc - G_inv_disc) ** 2
 
    return linearize(p, diff)
 #computes wasserstein distance
 # precondition -- f,g are probability densities
+# outputs W_2(f,g) where f,g are continuous and defined on the discrete
+# set x
 def wasserstein_distance(f,g,x,N):
   return np.sqrt(quad(wasserstein_integrand(f,g,x,N), 0.0, 1.0))
  
 #compute direct wasserstein
 def partial_wasserstein(f,g,a,b,N):
+  #print('%s ----> %s'%(n,np.linalg.norm(f-g)))
+
   f_p, f_m = split_normalize(f,a,b)
   g_p, g_m = split_normalize(g,a,b)
 
@@ -149,6 +165,34 @@ def partial_wasserstein(f,g,a,b,N):
   neg_contrib = (wasserstein_distance(f_m,g_m,x,N))**2
 
   return np.sqrt( pos_contrib + neg_contrib ) 
+
+def L2_norm(f,g,a,b):
+  h = lambda x : (f(x) - g(x))**2
+  return np.sqrt( quad(h, a, b) )
+
+#polymorphic wasserstein distance
+#  input
+#    -- f,g       -- any function
+#    -- a,b       -- domain of integration
+#    -- N         -- quantile function domain fineness
+#    -- norm_func -- function that converts f,g into PDFs
+#  output
+#    sqrt(sum_{i=1}^{k} W_2(f_i,g_i)^2) where f_i,g_i are renormalized 
+#      according to rule norm_func
+def poly_wasserstein(f,g,a,b,N,norm_func):
+  rn_f_g  = norm_func(f,g,a,b)
+  x       = np.linspace(a,b,N)
+  tot     = 0
+ 
+  for h in rn_f_g:
+    tmp = wasserstein_distance(h[0],h[1],x,N)**2
+    tot += tmp
+  
+  print('Renormalization array length = %s with W_2 = %s'%(len(rn_f_g), \
+    np.sqrt(tot)))
+  return np.sqrt(tot)
+  
+
 
 
 """
