@@ -4,7 +4,6 @@ from scipy.optimize import fsolve
 import matplotlib.pylab as plt
 from scipy import signal
 
-
 #splits wave f and g into positive and negative parts
 def split(f):
   def f_plus(x):
@@ -38,7 +37,17 @@ def better_split_normalize(f,g,a,b):
   f_p,f_m = split_normalize(f,a,b)
   g_p,g_m = split_normalize(g,a,b)
   
-  return [(f_p,g_p), (f_m,g_m)] 
+  return [(f_p,g_p), (f_m,g_m)]
+
+def exp_normalize_full(f,g,gamma,a,b):
+   h = lambda x : np.exp(-gamma * (f(x) - g(x)))
+   C = quad(h, a, b)
+   return lambda x : h(x) / C
+
+def exp_normalize(gamma):
+  def helper(f,g,a,b):
+    return exp_normalize_full(f,g,gamma,a,b)
+  return [helper]
 
 def normalize_L1(f,g,a,b):
   ff = lambda x : abs(f(x))
@@ -92,9 +101,11 @@ def invert_cdf_disc_cts(F, xx, interpolate=False):
     while( True ):
       if( step == 0 ):
         if( i == 0 ):
-          return (xx[i] + xx[i+1]) / 2
+#          return (xx[i] + xx[i+1]) / 2
+           return xx[i]
         if( i == len(xx) - 1 ):
-          return (xx[i-1] + xx[i]) / 2
+#          return (xx[i-1] + xx[i]) / 2
+           return xx[i]
         return (xx[i-1] + xx[i] + xx[i+1]) / 3
       if( opt_interval(i) ):
         if( i == 0 or i == (len(xx) - 1) ):
@@ -114,9 +125,11 @@ def invert_cdf_disc_cts(F, xx, interpolate=False):
       step //= 2 
   return G
       
-def invert_cdf_disc_disc(F, xx, yy, interpolate=False):
-  G = invert_cdf_disc_cts(F, xx, interpolate)
-  return np.array(list(map(G,yy)))
+def invert_cdf_disc_disc(FF, xx, yy, interpolate=False):
+#  G = invert_cdf_disc_cts(F, xx, interpolate)
+ # return np.array(list(map(G,yy)))
+  return np.array(list(map(\
+      lambda z : xx[min(len(FF)-1, np.digitize(z, FF, True))],yy))) 
 
 #computes the integrand that goes into 1D exact formulation for the W_2
 #  formulation
@@ -180,9 +193,13 @@ def L2_norm(f,g,a,b):
 #    sqrt(sum_{i=1}^{k} W_2(f_i,g_i)^2) where f_i,g_i are renormalized 
 #      according to rule norm_func
 def poly_wasserstein(f,g,a,b,N,norm_func):
+  print('yo')
   rn_f_g  = norm_func(f,g,a,b)
+  print('yo again')
   x       = np.linspace(a,b,N)
   tot     = 0
+
+  print(rn_f_g)
  
   for h in rn_f_g:
     tmp = wasserstein_distance(h[0],h[1],x,N)**2
@@ -224,3 +241,10 @@ def linearize(xx,yy):
 
 def shift(f,s):
   return lambda t : f(t-s)
+
+def trapz(ff, xx, N):
+  dx    = xx[1:] - xx[:-1]
+  ave_y = (ff[1:] + ff[:-1]) / 2
+  return np.dot(dx,ave_y)
+
+

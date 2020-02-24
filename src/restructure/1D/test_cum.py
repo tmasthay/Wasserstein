@@ -64,7 +64,9 @@ def test_convexity(f,shifts,a,b,N):
   x         = np.linspace(a,b,N)
   dists     = []
   L2_dists  = []
-  norm_func = rn.better_split_normalize
+  #norm_func = rn.better_split_normalize
+  gamma = -1.0
+  norm_func = rn.exp_normalize(gamma)
 #  norm_func = rn.normalize_L1
   wass = lambda g : rn.poly_wasserstein(f,g,a,b,N,norm_func)
   L2   = lambda g : rn.L2_norm(f,g,a,b)
@@ -98,6 +100,7 @@ def plot_convexity_test(f,shifts,s,a,b,N,fig_name='',the_title=''):
   axs[1].legend()
   axs[2].legend()
   fig.savefig(fig_name)
+
 
 mu        = [1.0, 3.0]
 sigma     = [0.2, 0.2]
@@ -149,14 +152,20 @@ if(compute_ricker):
 mu     = 0.0
 sigma  = 1.0
 shift  = 2.0
-f      = gauss(mu,sigma)
-g    = gauss(mu + shift, sigma)
-N_x    = 100
-N_y    = 100
+c      = 1.0
+f      = ricker(mu,sigma,c)
+g      = ricker(mu + shift, sigma,c)
+N_x    = 1000
+N_y    = 1000
 a      = -5.0
 b      = 5.0
 x      = np.linspace(a,b,N_x)
 y      = np.linspace(0.0,1.0,N_y)
+
+rn_fg  = rn.better_split_normalize(f,g,a,b)
+tmp    = rn_fg[0]
+f      = tmp[0]
+g      = tmp[1]
 
 def get_stuff(h):
   tmp    = rn.cum_disc(h,x)
@@ -174,6 +183,7 @@ G_disc,G_inv,G_inv2,G_inv_smooth,G_inv2_smooth = get_stuff(g)
 plt.figure(1)
 plt.plot(x,F_disc,label='F')
 plt.plot(x,G_disc,label='G')
+plt.title('CDF for Ricker+, support [-5,5], mu = 0.0, sigma = 1.0')
 plt.savefig('figures/cum_distribution.png')
 plt.legend()
 
@@ -182,6 +192,8 @@ plt.plot(y,F_inv, label='I,NS')
 #plt.plot(y,F_inv2, label='NI,NS')
 plt.plot(y,G_inv, label='shift I,NS')
 #plt.plot(y,G_inv2, label='shift NI,NS')
+plt.title('Quantile Function for Ricker+, support [-5,5], mu = 0.0, sigma = 1.0')
+print('about to save')
 plt.savefig('figures/inv_nonsmooth.png')
 plt.legend()
 
