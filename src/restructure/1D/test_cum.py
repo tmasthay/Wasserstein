@@ -17,9 +17,7 @@ from scipy import special
 import math
 
 def ricker(s, sigma, c):
-  print('RICKER')
   if( isinstance(s, int) or isinstance(s, float) ):
-    print('INTEGER')
     def f(t):
       u      = t - s
       C      = 2 / (np.sqrt(3 * sigma) * (math.pi ** (1/4)))

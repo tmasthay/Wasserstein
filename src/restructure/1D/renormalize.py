@@ -242,9 +242,12 @@ def linearize(xx,yy):
 def shift(f,s):
   return lambda t : f(t-s)
 
-def trapz(ff, xx, N):
+def trapz(ff, xx):
   dx    = xx[1:] - xx[:-1]
   ave_y = (ff[1:] + ff[:-1]) / 2
   return np.dot(dx,ave_y)
 
-
+x = np.linspace(0,1,1000)
+f = lambda x : np.exp(x)
+ff = np.array(list(map(f,x)))
+print( trapz(ff, x) ) 
