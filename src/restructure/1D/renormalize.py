@@ -4,6 +4,9 @@ from scipy.optimize import fsolve
 import matplotlib.pylab as plt
 from scipy import signal
 
+def qquad(f,a,b):
+  return quad(f,a,b,limit=200)
+
 #splits wave f and g into positive and negative parts
 def split(f):
   def f_plus(x):
@@ -20,6 +23,7 @@ def split(f):
 
 #renormalize a given probability distribution
 def normalize(f, a, b):
+  print('integrate quad normalize')
   C,D = quad(f,a,b)
   if( C == 0 ):
     return f
@@ -29,6 +33,7 @@ def normalize(f, a, b):
 def split_normalize(f, a, b):
   f_p,f_m = split(f)  
 
+  print('split_normalize')
   f_p = normalize(f_p,a,b)
   f_m = normalize(f_m,a,b)
   return f_p, f_m
@@ -41,6 +46,7 @@ def better_split_normalize(f,g,a,b):
 
 def exp_normalize_full(f,g,gamma,a,b):
    h = lambda x : np.exp(-gamma * (f(x) - g(x)))
+   print('integrate quad')
    C = quad(h, a, b)
    return lambda x : h(x) / C
 
@@ -56,6 +62,7 @@ def normalize_L1(f,g,a,b):
 
 #get cdf from pdf
 def cumulative(f):
+  print('integrate quad cumulative')
   return lambda x : quad(f,-np.inf, x)
 #  return lambda x : quad(f, 0, x)
 
@@ -163,6 +170,7 @@ def wasserstein_integrand(f,g,x,N,smooth=False):
 # outputs W_2(f,g) where f,g are continuous and defined on the discrete
 # set x
 def wasserstein_distance(f,g,x,N):
+  print('integrate wass')
   return np.sqrt(quad(wasserstein_integrand(f,g,x,N), 0.0, 1.0))
  
 #compute direct wasserstein
@@ -181,6 +189,7 @@ def partial_wasserstein(f,g,a,b,N):
 
 def L2_norm(f,g,a,b):
   h = lambda x : (f(x) - g(x))**2
+  print('integrate L2')
   return np.sqrt( quad(h, a, b) )
 
 #polymorphic wasserstein distance
@@ -193,7 +202,7 @@ def L2_norm(f,g,a,b):
 #    sqrt(sum_{i=1}^{k} W_2(f_i,g_i)^2) where f_i,g_i are renormalized 
 #      according to rule norm_func
 def poly_wasserstein(f,g,a,b,N,norm_func):
-  print('yo')
+  print('yo wass')
   rn_f_g  = norm_func(f,g,a,b)
   print('yo again')
   x       = np.linspace(a,b,N)

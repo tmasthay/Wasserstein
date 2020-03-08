@@ -62,9 +62,9 @@ def test_convexity(f,shifts,a,b,N):
   x         = np.linspace(a,b,N)
   dists     = []
   L2_dists  = []
-  #norm_func = rn.better_split_normalize
-  gamma = -1.0
-  norm_func = rn.exp_normalize(gamma)
+  norm_func = rn.better_split_normalize
+  #gamma = -1.0
+  #norm_func = rn.exp_normalize(gamma)
 #  norm_func = rn.normalize_L1
   wass = lambda g : rn.poly_wasserstein(f,g,a,b,N,norm_func)
   L2   = lambda g : rn.L2_norm(f,g,a,b)
@@ -84,17 +84,15 @@ def plot_convexity_test(f,shifts,s,a,b,N,fig_name='',the_title=''):
   ff    = np.array(list(map(f,x)))
   shift_plots    = []
   for i,y in enumerate(shifts):
-    if(i == 0 or i == np.ceil(len(shifts)/2) or i == len(shifts) - 1):
+    if(i == 0 or i == np.floor(len(shifts)/2) or i == len(shifts) - 1):
       shift_plots.append(np.array(list(map(y,x))))
 
   fig,axs = plt.subplots(3)
   fig.suptitle('Convexity Test: %s'%(the_title))
-  axs[0].plot(x,ff,label='Original')
   for i,y in enumerate(shift_plots):
     axs[0].plot(x,y)
   axs[1].plot(s,dists,label='W2(f,f_s)')
   axs[2].plot(s,L2_dists,label='L_2^2(f,f_s)')
-  axs[0].legend()
   axs[1].legend()
   axs[2].legend()
   fig.savefig(fig_name)
@@ -105,8 +103,8 @@ sigma     = [0.2, 0.2]
 K         = np.sqrt(3 * sigma[0]) * (math.pi ** (.25)) / 2
 c         = [K, K]
 
-mu_step  = 0.08
-N_s      = 50
+mu_step  = 0.04
+N_s      = 60
 
 N_x      = 1000
 h        = gauss(mu,sigma,c)
@@ -120,23 +118,43 @@ s        = mu_step * np.array(range(-N_s,N_s+1))
 print(s)
 input()
 
-compute_gauss  = False
-compute_ricker = True
+compute_gauss  = True
+compute_ricker = False
+go = True
 
-if( compute_gauss ):
+if( compute_gauss and go ):
   for shift_length in s:
     print(shift_length)
-    shifted.append( gauss( mu + shift_length, sigma) )
-  
+    shifted.append( gauss( mu + shift_length, sigma, c) )
+ 
+  plt.figure(7)
+  xx = np.linspace(a,b,N_x)
+  FF,tmp = rn.cum_disc(h,xx)
+  hh = gauss(mu+mu_step * N_s*np.ones(2), sigma, c)
+  FFF,tmp = rn.cum_disc(hh,xx)
+  plt.title('Gaussian CDF')
+  plt.plot(xx,FF,xx,FFF)
+  plt.savefig('figures/Gauss/GaussCDF.png')
+
+  plt.figure(8)
+  yy = np.linspace(0.0,1.0,N_x)
+  F_inv = rn.invert_cdf_disc_disc(FF, xx, yy, True)
+  FFF_inv = rn.invert_cdf_disc_disc(FFF,xx,yy,True)
+  plt.title('Gaussian Quantile')
+  plt.plot(yy,F_inv,yy,FFF_inv)
+  plt.savefig('figures/Gauss/GaussInvCDF.png')
+   
+  """
   plt.figure(4)
   plot_convexity_test(h,                                  \
                       shifted,                            \
                       s,                                  \
                       a, b, N_x,                          \
-                      fig_name ='figures/GaussCheck-L1.png', \
+                      fig_name ='figures/Gauss/GaussConvexity.png', \
                       the_title= 'Gaussian Packets')
+  """
 
-if(compute_ricker):
+if(compute_ricker and go):
   plt.figure(5)
   for s_len in s:
     rick_s.append( ricker(mu + s_len, sigma, c) )
