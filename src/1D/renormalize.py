@@ -34,9 +34,6 @@ def normalize(f, a, b):
   C  = trapz(yy,xx)
 
   print('Normalize: %s'%(C))
-  if( C == 0 ):
-    plt.plot(xx,yy)
-    plt.show()
 
   if( C == 0 ):
     return f
@@ -177,3 +174,13 @@ def linearize(xx,ff):
      return ff[i-1] + (ff[i] - ff[i-1])\
             / (xx[i]-xx[i-1]) * (x - xx[i-1])
   return lin
+
+# ff, gg are the discrete versions of f,g
+# xx is the space where we linearly interpolate over
+#
+def wass_poly_disc(ff,gg,xx,norm_func):
+  a = xx[0]
+  b = xx[len(xx) - 1]
+  f = linearize(ff,xx)
+  g = linearize(gg,xx)
+  return poly_wasserstein(f,g,a,b,len(xx),norm_func)

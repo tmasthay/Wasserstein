@@ -120,7 +120,7 @@ s        = mu_step * np.array(range(-N_s,N_s+1))
 norm_func = rn.better_split_normalize
 
 #runtime decisions as to what we actually do
-compute_gauss  = False
+compute_gauss  = True
 compute_ricker = True
 go = True
 
