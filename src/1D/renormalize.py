@@ -3,6 +3,9 @@ from scipy.integrate import quad
 from scipy.optimize import fsolve
 import matplotlib.pylab as plt
 from scipy import signal
+from scipy.interpolate import interp1d
+from scipy.interpolate import interp2d
+from scipy.integrate import simps
 
 def qquad(f,a,b):
   return quad(f,a,b,limit=200)
@@ -181,6 +184,22 @@ def linearize(xx,ff):
 def wass_poly_disc(ff,gg,xx,norm_func):
   a = xx[0]
   b = xx[len(xx) - 1]
-  f = linearize(ff,xx)
-  g = linearize(gg,xx)
+  f = interp1d(xx,ff)
+  g = interp1d(xx,gg)
   return poly_wasserstein(f,g,a,b,len(xx),norm_func)
+
+def traceW22(f, g, y, t, norm_func):
+  J = len(y)
+  h = np.zeros(J)
+
+  print('TraceW2')
+  input('Press Enter to Continue:')
+  for j in range(J):
+      f_time_series = f[j][:]
+      g_time_series = g[j][:]
+      tmp           = wass_poly_disc(f_time_series,g_time_series,t,norm_func)
+      h[j]          = tmp[0]**2
+
+  return simps(h, y) 
+  
+       

@@ -130,7 +130,6 @@ def tester(shifts):
   plt.title('Ricker- CDF')
   for ncdf in neg_dense:
     plt.plot(x, ncdf)
-  plt.show()
  
 
 #shifts  = np.linspace(-4.0,4.0,160)
@@ -138,4 +137,4 @@ def tester(shifts):
 #plt.plot(shifts, dists)
 #plt.show() 
 
-tester([-2.0, -1.0, 0.0, 1.0, 2.0])
+#tester([-2.0, -1.0, 0.0, 1.0, 2.0])

@@ -65,10 +65,16 @@ def test_convexity(f,shifts,norm_func,a,b,N):
   #initialize data
   dists     = []
   L2_dists  = []
-  wass = lambda g : rn.poly_wasserstein(f,g,a,b,N,norm_func)
-  L2   = lambda g : rn.L2_norm(f,g,a,b)
+#  wass = lambda g : rn.poly_wasserstein(f,g,a,b,N,norm_func)
+#  L2   = lambda g : rn.L2_norm(f,g,a,b)
+  xx = np.linspace(a,b,N)
+  ff = np.array(list(map(f, xx)))
+  wass = lambda gg : rn.wass_poly_disc(ff, gg, xx, norm_func)
+  L2 = lambda g : rn.L2_norm(f,g,a,b)
   for g in shifts:
-    tmp  = wass(g)
+#    tmp  = wass(g)
+    gg   = np.array(list(map(g,xx)))
+    tmp  = wass(gg)
     tmp2 = L2(g)
     print('W2 Norm!!! = %s'%(tmp[0]))
     dists.append(tmp[0]**2)
@@ -120,8 +126,8 @@ s        = mu_step * np.array(range(-N_s,N_s+1))
 norm_func = rn.better_split_normalize
 
 #runtime decisions as to what we actually do
-compute_gauss  = True
-compute_ricker = True
+compute_gauss  = False
+compute_ricker = False
 go = True
 
 if( compute_gauss and go ):
