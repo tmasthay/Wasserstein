@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#/usr/bin/env python
 # coding: utf-8
 
 #all imports
@@ -6,35 +6,32 @@ from dolfin import *
 from ufl import nabla_div
 import matplotlib.pyplot as plt
 import os
+import numpy as np
 
 # Physical parameters
 # rho -- density
-# lambbda -- first Lame parameter, intentionally mispelled since "lambda" is a Python keyword
+# lmbda -- first Lame parameter, intentionally mispelled since "lambda" is a Python keyword
 # mu -- second Lame parameter, shear modulus
 rho = 1.0
-lambbda = 1.0
+lmbda = 1.0
 mu = 10.0
 
 #Spatial domain variables
 #Domain = [0,L]x[0,L], with N grid points in each direction
 box_length = 2.0
-N = 20
+N = 50
 
 #time stepping
-#  clf_padding : parameter <= 1 to allow for extra stringent cfl condition if
+#  cfl_padding : parameter <= 1 to allow for extra stringent cfl condition if
 #                    we see instabilities
 #  max_speed : p-wave velocity -- max information transmission rate
 #  box_length/N : grid size given for cfl condition
 cfl_padding = 0.25
-max_speed = sqrt((lambbda + 2 * mu) / rho)
+max_speed = sqrt((lmbda + 2 * mu) / rho)
 dt = cfl_padding * (box_length/N) / max_speed
 
 #terminal time T
-T = 1.0
-
-
-# In[3]:
-
+T = .4
 
 #defining mesh, functions spaces, and translating numerical values into Fenics objects
 
@@ -43,19 +40,40 @@ mesh = RectangleMesh(Point(0.0, 0.0), Point(box_length, box_length), N,N)
 
 #define Function space -- V is vector space, S is analoguous scalar field with same mesh and degree
 deg = 1 
-V = VectorFunctionSpace(mesh, "Lagrange", deg)
+V = VectorFunctionSpace(mesh, "CG", deg)
 S = FunctionSpace(mesh, V.ufl_element().family(), V.ufl_element().degree())
 
 #fieldname_f = "fieldname function" = "Translated version into Fenics"
 rho_f = interpolate(Expression('rho'    , degree=deg, rho=rho        ), S)
-lambbda_f = interpolate(Expression('lambbda', degree=deg, lambbda=lambbda), S)
+lmbda_f = interpolate(Expression('lmbda', degree=deg, lmbda=lmbda), S)
 mu_f = interpolate(Expression('mu'     , degree=deg, mu=mu          ), S)
 
-# In[4]:
 
+#set parameters for the analytic solution
+def k(m):
+    return pi / box_length * m
 
-#any helper functions used down the road for terms, plots, etc.
+k_x = k(0)
+k_y = k(1)
+k_tot = sqrt(k_x**2 + k_y**2)
+A = 1.0
+#w = sqrt((lmbda + 2 * mu) / rho) * k_x
+w = k_tot * sqrt(mu / rho)
+print('angular frequency omega = %s and period %s'%(w, 2 * pi / w))
 
+#setup auxiliary Trial and test functions
+v_trial = TrialFunction(V)
+v_test  = TestFunction(V)
+
+#u1 -- u_{n-1}
+#u2 -- u_{n}
+#u  -- u_{n+1}
+u1 = Function(V)
+u2 = Function(V)
+u = Function(V)
+soln = Function(V)
+
+#helper functions for building terms
 def sigma(u,l,m):
     """returns first component of body forces
     
@@ -74,7 +92,7 @@ def body_forces(t):
     :rtype: Function
     :return: functional representation of forcing term
     """
-    stddev = box_length / 10
+    """stddev = box_length / 10
     C = 1/sqrt(2 * pi * stddev**2)
     gaussian = '%s * exp(-(pow(x[0] - %s, 2) + pow(x[1] - %s, 2))/%s)' \
                    %(C, 1.0, 1.0, 2 * (stddev**2))
@@ -83,6 +101,7 @@ def body_forces(t):
         ricker = '0.0'
     f_1 = '%s * %s'%(ricker, gaussian)
     f_2 = f_1
+    """
 
     f_1 = '0.0'
     f_2 = '0.0'
@@ -110,52 +129,14 @@ def get_dirichlet_condition(t):
     :rtype: DirichletBC 
     :return: Dirichlet boundary condition
     """
-    bc_1 = 'sin(%s * (%s - x[1]))'%(pi / box_length, t)
+#    bc_1 = '%s * cos(%s * x[0]) * cos(%s * x[1])'%(\
+#          k_x * k_y * A * cos(w * t) * (lmbda + mu), \
+#          k_x, k_y)
+#    bc_2 = bc_1
+    bc_1 = '%s * sin(%s * x[1])'%(A * cos(w * t), k_y)
     bc_2 = '0.0'
-    bc_1 = '0.0'
     return DirichletBC(V, Expression((bc_1,bc_2), degree=deg), 
                boundary_dirichlet)
-
-
-# In[5]:
-
-
-#setup solution
-
-
-#setup auxiliary Trial and test functions
-v_trial = TrialFunction(V)
-v_test  = TestFunction(V)
-
-#u1 -- u_{n-1}
-#u2 -- u_{n}
-#u  -- u_{n+1}
-u1 = Function(V)
-u2 = Function(V)
-u = Function(V)
-soln = Function(V)
-
-#bilinear form
-A = rho_f * inner(v_trial, v_test) * dx
-M = assemble(A)
-
-#define linear form for a given time step
-def L(u1, u2, t):
-    """Generates linear form
-    
-    :param: u1 -- solution at time t_{n-1}
-            u2 -- solution at time t_{n}
-            t -- time
-    :type: u1 -- Function
-           u2 -- Function
-           t -- Float
-    :rtype: LinearForm
-    :return: the linear form to solve for u_{n+1}
-    """
-    return 2 * rho_f * inner(u2, v_test) * dx - \
-           rho_f * inner(u1, v_test) * dx - \
-           Constant(dt**2) * inner(sigma(u2,lambbda, mu), grad(v_test)) * dx +\
-           Constant(dt**2) * inner(body_forces(t), v_test) * dx
 
 def update_analytic_soln(t):
     """Implements analytic solution to problem for testing purposes
@@ -165,10 +146,10 @@ def update_analytic_soln(t):
     :rtype: Function 
     :return: None -- updated soln function
     """
-    k = pi / box_length
-    comp_1 = 'sin(%s * (%s - x[1]))'%(k, t)
-    comp_2 = '0.0'
-    assign(soln, interpolate(Expression((comp_1, comp_2), degree=deg), V))
+    x_comp = '%s * sin(%s * x[1])'%(A * cos(w * t),\
+             k_y)
+    y_comp = '0.0'
+    assign(soln, interpolate(Expression((x_comp, y_comp), degree=deg), V))
 
 def set_initial_conditions():
     """
@@ -179,23 +160,19 @@ def set_initial_conditions():
     :rtype: void -- side effect
     :return: void -- side effect to initialize u1,u2
     """
-    #x_comp_1 = 'sin(4 * pi / %s * x[0]) * sin(4 * pi / %s * x[1])'%(box_length,box_length)
-    #y_comp_1 = 'sin(4 * pi / %s * x[0]) * sin(4 * pi / %s * x[1])'%(box_length,box_length)
+    #x_comp_1 = '%s * sin(%s * x[0]) * sin(%s * x[1])'%(amp[0], k_x, k_y)
+    #x_comp_2 = '%s * sin(%s * x[0]) * sin(%s * x[1])'%(amp[1], k_x, k_y)
     
-    #x_comp_2 = 'sin(4 * pi / %s * x[0]) * sin(4 * pi / %s * x[1])'%(box_length,box_length)
-    #y_comp_2 = 'sin(4 * pi / %s * x[0]) * sin(4 * pi / %s * x[1])'%(box_length,box_length)
-    #x_comp_1 = '-sin(%s * x[1])'%(pi / box_length)
-    x_comp_1 = '0.0'
+    x_comp_1 = '%s * sin(%s * x[1])'%(A, k_y)
     y_comp_1 = '0.0'
-    
-    #x_comp_2 = '%s + %s * cos(%s * x[1])'%(x_comp_1, dt * pi / box_length, pi / box_length)
-    x_comp_2 = '0.0'
-    y_comp_2 = '0.0'
-    
+
+    x_comp_2 = x_comp_1
+    y_comp_2 = y_comp_1
+
     assign(u1, interpolate(Expression((x_comp_1, y_comp_1), degree=deg), V))
     assign(u2, interpolate(Expression((x_comp_2, y_comp_2), degree=deg), V))
-    
-def take_step(t):
+
+def take_step(t, L, M, the_solver):
     """solves for solution for next time
     
     :param: t -- time
@@ -203,10 +180,10 @@ def take_step(t):
     :rtype: void
     :return: void -- side effect to update solution
     """
-    b = assemble(L(u1, u2, t))
+    b = assemble(L)
     bc = get_dirichlet_condition(t)
-    bc.apply(M,b)
-    solve(M, u.vector(), b)
+    bc.apply(b)
+    the_solver.solve(M, u.vector(), b)
     #solve(A == L(u1,u2,t), u, get_dirichlet_condition(t))
     
     assign(u1,u2)
@@ -231,53 +208,102 @@ def go():
     set_initial_conditions()
     t = 2 * dt
     j = 2
-    
+
+    #linear form
+    L = 2 * rho_f * inner(u2, v_test) * dx - \
+           rho_f * inner(u1, v_test) * dx - \
+           Constant(dt**2) * inner(sigma(u2,lmbda, mu), grad(v_test)) \
+           * dx +\
+           Constant(dt**2) * inner(body_forces(t), v_test) * dx
+
+    #setup up stiffness matrix (constant in time)
+    A = rho_f * inner(v_trial, v_test) * dx
+    bc = get_dirichlet_condition(t)
+    M, res = assemble_system(A, L, bc)
+    solver = LUSolver(M, "mumps")
+    solver.parameters["symmetric"] = True
+   
     #clean out past files
     os.system('rm *.vtu *.pvd')
 
+    #variables that track difference
+    diff_x = Function(S)
+    diff_y = Function(S)
+
     #declare files for each vector component
-    xfile = File('x.pvd')
-    yfile = File('y.pvd')
-    soln_file_x = File('solnx.pvd')
-    soln_file_y = File('solny.pvd')
+    storage_directory = 'figures'
+    cr_file = lambda x : File('%s/%s'%(storage_directory,x))
+    xfile = cr_file('x.pvd')
+    yfile = cr_file('y.pvd')
+    soln_file_x = cr_file('solnx.pvd')
+    soln_file_y = cr_file('solny.pvd')
+    diff_file_x = cr_file('diffx.pvd')
+    diff_file_y = cr_file('diffy.pvd')
 
-    #write the first two initial conditions to their appropriate files
-    xfile << (u1.sub(0), 0.0)
-    xfile << (u2.sub(0), dt)
-    yfile << (u1.sub(1), 0.0)
-    yfile << (u2.sub(1), dt)
+    #update the difference
+    def update_diff(s, v):
+       if( s == 'x' ):
+          diff_x.vector()[:] = soln.sub(0).vector()[:] - \
+                               v.sub(0).vector()[:]
+       else:
+          diff_y.vector()[:] = soln.sub(1).vector()[:] - \
+                               v.sub(0).vector()[:]
 
-    #write analytic solution to appropriate file
-    #t = 0
+    def write_to_vtu(tt, v):
+        xfile << (v.sub(0), tt)
+        yfile << (v.sub(1), tt)
+        soln_file_x << (soln.sub(0), tt)
+        soln_file_y << (soln.sub(1), tt)
+        #update_diff('x', v)
+        #update_diff('y', v)
+        #diff_file_x << diff_x
+        #diff_file_y << diff_y
+
+    main_write_vtu = lambda tt : write_to_vtu(tt,u)
+
+    #write for first time step
     update_analytic_soln(0.0)
-    soln_file_x << (soln.sub(0), 0.0)
-    soln_file_y << (soln.sub(1), 0.0)
-
-    #  t = dt
-    update_analytic_soln(dt)  
-    soln_file_x << (soln.sub(0), dt)
-    soln_file_y << (soln.sub(1), dt)
-
+    write_to_vtu(0.0, u1)
+    
+    #write for first time step
+    update_analytic_soln(dt)
+    write_to_vtu(dt, u2)
+    
     #main while loop   
     while(t <= T):
         #move forward with bilinear form solve
         #  TODO: check ILU preconditioner
-        take_step(t)
+
         print('t = %s and l2 norm = %s'%(t, get_l2_norm()))
+        """
+        bc = get_dirichlet_condition(0.0)
+        the_vals = bc.get_boundary_values()
+        the_keys = np.array(list(the_vals.keys()))
+        mine = u.sub(0).vector()[the_keys]
+        analytic = u.sub(0).vector()[the_keys]
+        tmp = 0
+        for i in range(0,len(mine)):
+            print(mine[i])
+        """
+        take_step(t, L, M, solver)
     
          #plot every set number of time steps and guarantee plotting last 
          #  time step
         if( j % 1 == 0 or ((t+dt) > T) ):
-            xfile << (u.sub(0), t)
-            yfile << (u.sub(1), t)
-            soln_file_x << (soln.sub(0), t)
-            soln_file_y << (soln.sub(1), t)
+            main_write_vtu(t)
             print('j = %s, t = %s'%(j,t))
         j = j+1
         t = t + dt
+
     #reformat vtu files to work properly
     os.system('sed -i \'\' \'s/f_[0-9]*[-]*[0-9]*/f/g\' *.vtu')
     os.system('sed -i \'\' \'s/UInt32/Int32/g\' *.vtu')
     print('Success!')
 
 go()
+
+bc = get_dirichlet_condition(0.0)
+the_vals = bc.get_boundary_values()
+the_keys = np.array(list(the_vals.keys()))
+print(the_keys)
+print(u.sub(0).vector()[:])
