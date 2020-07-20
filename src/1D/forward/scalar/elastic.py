@@ -92,7 +92,7 @@ def body_forces(t):
     :rtype: Function
     :return: functional representation of forcing term
     """
-    """stddev = box_length / 10
+    stddev = box_length / 10
     C = 1/sqrt(2 * pi * stddev**2)
     gaussian = '%s * exp(-(pow(x[0] - %s, 2) + pow(x[1] - %s, 2))/%s)' \
                    %(C, 1.0, 1.0, 2 * (stddev**2))
@@ -101,10 +101,6 @@ def body_forces(t):
         ricker = '0.0'
     f_1 = '%s * %s'%(ricker, gaussian)
     f_2 = f_1
-    """
-
-    f_1 = '0.0'
-    f_2 = '0.0'
     return interpolate(Expression((f_1,f_2), degree=deg), V)
 
 def boundary_dirichlet(x, on_boundary):
@@ -134,7 +130,7 @@ def get_dirichlet_condition(t):
 #          k_x, k_y)
 #    bc_2 = bc_1
     bc_1 = '%s * sin(%s * x[1])'%(A * cos(w * t), k_y)
-    bc_2 = '0.0'
+    bc_2 = '2.0'
     return DirichletBC(V, Expression((bc_1,bc_2), degree=deg), 
                boundary_dirichlet)
 
@@ -163,7 +159,8 @@ def set_initial_conditions():
     #x_comp_1 = '%s * sin(%s * x[0]) * sin(%s * x[1])'%(amp[0], k_x, k_y)
     #x_comp_2 = '%s * sin(%s * x[0]) * sin(%s * x[1])'%(amp[1], k_x, k_y)
     
-    x_comp_1 = '%s * sin(%s * x[1])'%(A, k_y)
+    #x_comp_1 = '%s * sin(%s * x[1])'%(A, k_y)
+    x_comp_1 = '0.0'
     y_comp_1 = '0.0'
 
     x_comp_2 = x_comp_1
@@ -209,17 +206,18 @@ def go():
     t = 2 * dt
     j = 2
 
+    tmp = body_forces(0.0)
     #linear form
-    L = 2 * rho_f * inner(u2, v_test) * dx - \
+    L = lambda tt : 2 * rho_f * inner(u2, v_test) * dx - \
            rho_f * inner(u1, v_test) * dx - \
            Constant(dt**2) * inner(sigma(u2,lmbda, mu), grad(v_test)) \
            * dx +\
-           Constant(dt**2) * inner(body_forces(t), v_test) * dx
+           Constant(dt**2) * inner(body_forces(tt), v_test) * dx
 
     #setup up stiffness matrix (constant in time)
     A = rho_f * inner(v_trial, v_test) * dx
     bc = get_dirichlet_condition(t)
-    M, res = assemble_system(A, L, bc)
+    M, res = assemble_system(A, L(t), bc)
     solver = LUSolver(M, "mumps")
     solver.parameters["symmetric"] = True
    
@@ -285,7 +283,7 @@ def go():
         for i in range(0,len(mine)):
             print(mine[i])
         """
-        take_step(t, L, M, solver)
+        take_step(t, L(t), M, solver)
     
          #plot every set number of time steps and guarantee plotting last 
          #  time step
