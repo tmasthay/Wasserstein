@@ -31,7 +31,7 @@ max_speed = sqrt((lmbda + 2 * mu) / rho)
 dt = cfl_padding * (box_length/N) / max_speed
 
 #terminal time T
-T = .4
+T = .8
 
 #defining mesh, functions spaces, and translating numerical values into Fenics objects
 
