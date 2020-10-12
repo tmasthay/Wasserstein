@@ -158,14 +158,21 @@ class elastic:
  
         #previous solution
         self.u1 = interpolate(Expression(d.second, degree=d.deg), self.V)
-  
-        zero_expr = Expression('0.0', degree=d.deg)
+ 
 
         #initialize solution to first time step
         self.u = Function(self.V)
         assign(self.u, self.u0)
 
+        load_previous = False
+
+        if( load_previous ):
+            self.u0.vector().set_local(np.load('u0.npy'))
+            self.u1.vector().set_local(np.load('u1.npy'))
+            self.u.vector().set_local(np.load('u.npy')) 
+
         #setup PML information
+        zero_expr = interpolate(Expression('0.0', degree=self.deg), self.S)
         self.aux_var = {'tau' : 
             [[zero_expr, zero_expr], [zero_expr, zero_expr]],
             'u' :
@@ -186,12 +193,12 @@ class elastic:
         self.shift = d.shift
   
         #time step initialization, based on cfl condition
-        p_wave = interpolate(Expression('pow(%s + 2 * %s / %s, 0.5)'%(
+        p_wave = interpolate(Expression('(%s + 2 * %s) / %s'%(
                              d.lmbda, d.mu, d.rho),
                              degree=d.deg), self.S)
         h = self.mesh.hmin()
         c = max(p_wave.vector()[:])
-        self.dt = d.cfl * h / c
+        self.dt = d.cfl * h / (c ** 0.5)
         self.T = d.T
         self.t = 0.0
         self.dim = len(d.first)
@@ -446,6 +453,9 @@ class elastic:
         def controlC_handler(sig,frame):
             print('You hit CTRL+C...cleaning output')
             self.__clean_output()
+            np.save('u0', self.u0.vector().get_local())
+            np.save('u1', self.u1.vector().get_local())
+            np.save('u', self.u.vector().get_local())
             exit(0)
          
         signal.signal(signal.SIGINT, controlC_handler)
@@ -474,11 +484,7 @@ class elastic:
             print('(step, exe_time,err) = (%s,%s,%s)'%(
                 time_step, time2 - time1, self.err))
             time_step += 1
-        P
         self.__clean_output(False)
-
-mesh = RectangleMesh(Point(0.0,0.0), Point(1.0, 1.0), 5, 5)
-V = FunctionSpace(mesh, 'CG', 1)
-W = VectorFunctionSpace(mesh, 'CG', 1)
-
-
+        np.save('u0', self.u0.vector().get_local())
+        np.save('u1', self.u1.vector().get_local())
+        np.save('u', self.u.vector().get_local())
