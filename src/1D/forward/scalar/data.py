@@ -22,9 +22,11 @@ class wave_functions:
         return lambda t : '%s * %s'%(wave_functions.ricker(mu1,sigma1,t), 
             wave_functions.my_gauss(mu2,sigma2,2))
    
-    def tmp(mu1,sigma1, mu2, sigma2, dim=2):
+    def my_gauss_2D(mu1,sigma1, mu2, sigma2, dim=2):
         g = wave_functions.ricker_gauss(mu1,sigma1,mu2,sigma2, dim)
-        return lambda t : (g(t), g(t))
+        def helper(t):
+            return (g(t), g(t))
+        return helper
 
 #d term in Duke paper
 def PML_damping(d):
@@ -237,28 +239,35 @@ class elastic:
                     i2)
 ##                print(type(self.mod_var['u'][i1][i1]))
 #                print(self.mod_var['u'][i1][i1].ufl_shape)
-                c = plot(self.u1.sub(i1))
-                plt.colorbar(c)
-                plt.title('True solution')
-                plt.show()
-                c = plot(interpolate(self.aux_var['u'][i1][i2], self.S))
-                plt.colorbar(c)
-                plt.title('Auxiliary variable')
-                plt.show()
-                c = plot(interpolate(self.mod_var['u'][i1][i2], self.S))
-                plt.title('Modified u')
-                plt.colorbar(c)
-                plt.show()
+                x = 0
+                if( i1 == 0 and i2 == 1 ):
+                    x = 1
+                elif( i1 == 1 and i2 == 0 ):
+                    x = 2
+                elif( i1 == 1 and i2 == 1 ):
+                    x = 3
+#                plt.figure(x)
+#                plt.title('u[%s][%s]'%(i1,i2))
+#                plt.subplot(2,3,1)
+#                c = plot(self.u1.sub(i1))
+#                plt.title('True solution')
+#                plt.subplot(2,3,2)
+#                c = plot(interpolate(self.aux_var['u'][i1][i2], self.S))
+#                plt.title('Auxiliary variable')
+#                plt.subplot(2,3,3)
+#                c = plot(interpolate(self.mod_var['u'][i1][i2], self.S))
+#                plt.title('Modified u')
+#                plt.subplot(2,3,4)
 #                c = plot(interpolate(self.damp[i2], self.S))
 #                plt.title('Damping')
-#                plt.colorbar(c)
-#                plt.show()
+#                plt.subplot(2,3,5)
 #                c = plot(interpolate(self.butter[i2], self.S))
 #                plt.title('Butterworth Filter')
-#                plt.show()
+#                plt.subplot(2,3,6)
 #                c = plot(interpolate(self.shift[i2], self.S))
 #                plt.title('Shifting Filter')
-#                plt.show()
+#                plt.show(block=False)
+#                plt.pause(0.05)
 #                exit(1)
                 if( i1 == i2 ): 
                     s = "(lmbda + 2 * mu) * derivU"
@@ -303,7 +312,7 @@ class elastic:
             tau22=self.mod_var['tau'][1][1],
             degree=self.deg)
         print('mods updated: %s' % (time.time() - time1)) 
-        
+         
 
     def __sigma(self, uu):
         return self.lmbda * nabla_div(uu) * Identity(self.dim) + \
@@ -345,6 +354,13 @@ class elastic:
                            v_test) * dx + \
                        Constant(self.dt**2) * inner(self.curr_neumann,
                            v_test) * ds
+#        self.lin_form = 2 * self.rho * inner(self.u1, v_test) * dx - \
+#            self.rho * inner(self.u0, v_test) * dx - \
+#            Constant(self.dt**2) * \
+#                inner(self.__sigma(self.u1), grad(v_test)) * dx + \
+#            Constant(self.dt**2) * inner(self.curr_body_forces, v_test) * \
+#                dx + \
+#            Constant(self.dt**2) * inner(self.curr_neumann, v_test) * ds
 
     def __create_bilinear_form(self):
         v_trial = TrialFunction(self.V)
@@ -363,7 +379,6 @@ class elastic:
         assign(self.u0, self.u1)
         assign(self.u1, self.u)
         A, b = assemble_system(self.B, self.lin_form, self.curr_dirichlet)
-        
         solve(A, self.u.vector(), b)
         
     def __create_files(self):
@@ -377,6 +392,18 @@ class elastic:
         self.tau_tilde_files = [cr_file('tau11.pvd'), \
             cr_file('tau12.pvd'), cr_file('tau21.pvd'), \
             cr_file('tau22.pvd')]
+        self.PML_dampx = cr_file('dampx.pvd')
+        self.PML_dampy = cr_file('dampy.pvd')
+        self.PML_butterx = cr_file('butterx.pvd')
+        self.PML_buttery = cr_file('buttery.pvd')
+        self.PML_shiftx = cr_file('shiftx.pvd')
+        self.PML_shifty = cr_file('shifty.pvd')
+        self.PML_dampx << interpolate(self.damp[0], self.S)
+        self.PML_dampy << interpolate(self.damp[1], self.S)
+        self.PML_butterx << interpolate(self.butter[0], self.S)
+        self.PML_buttery << interpolate(self.butter[1], self.S)
+        self.PML_shiftx << interpolate(self.shift[0], self.S)
+        self.PML_shifty << interpolate(self.shift[1], self.S)
         if( self.dim == 3 ):
             self.solver_files.append('z.pvd')
             self.analytic_files.append('z_analytic.pvd')
@@ -388,22 +415,6 @@ class elastic:
 #            self.analytic_files[i] << (self.curr_analytic.sub(i),
 #                self.t)
 #            self.diff_files[i] << (self.diff.sub(i), self.t)
-            self.tau_tilde_files[0] << (self.mod_var['tau'][0][0],
-                self.t)
-            self.tau_tilde_files[1] << (self.mod_var['tau'][0][1],
-                self.t)
-            self.tau_tilde_files[2] << (self.mod_var['tau'][1][0],
-                self.t)
-            self.tau_tilde_files[3] << (self.mod_var['tau'][1][1],
-                self.t)
-            self.u_tilde_files[0] << (self.mod_var['u'][0][0],
-                self.t)
-            self.u_tilde_files[1] << (self.mod_var['u'][0][1],
-                self.t)
-            self.u_tilde_files[2] << (self.mod_var['u'][1][0],
-                self.t)
-            self.u_tilde_files[3] << (self.mod_var['u'][1][1],
-                self.t)
     def __clean_output(self, remove=False):
         if(remove and os.path.isdir(self.storage_dir)):
             os.system("rm -rf %s/*.vtu"%(self.storage_dir))
@@ -437,7 +448,7 @@ class elastic:
             self.__clean_output()
             exit(0)
          
-        signal.signal(signal.SIGINT, controlC_handler) 
+        signal.signal(signal.SIGINT, controlC_handler)
         while(self.t <= self.T - self.dt):
             time1 = time.time()
             self.__take_step()
@@ -445,10 +456,25 @@ class elastic:
             self.__update()       
             if( time_step % plot_interval == 0 ):
                 self.__write_to_vtu()
+#                plt.figure(1)
+#                plt.title('t = %s'%(self.t))
+#                plt.subplot(1,2,1)
+#                plot(self.u.sub(0))
+#                plt.title('X component')
+#                plt.ylabel('Displacement')
+#                plt.xlabel('Space')
+#                plt.subplot(1,2,2)
+#                plot(self.u.sub(1))
+#                plt.title('Y component')
+#                plt.ylabel('Displacement')
+#                plt.xlabel('Space')
+#                plt.show(block=False)
+#                plt.pause(0.05)
             time2 = time.time()
             print('(step, exe_time,err) = (%s,%s,%s)'%(
                 time_step, time2 - time1, self.err))
             time_step += 1
+        P
         self.__clean_output(False)
 
 mesh = RectangleMesh(Point(0.0,0.0), Point(1.0, 1.0), 5, 5)
